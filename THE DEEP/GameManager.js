@@ -69,6 +69,12 @@ class GameManager {
     this.zoneTransitionTimer = 0;
     this.timer = 0;
     this.obstacles = [];
+    this.leaderGroup  = null;  // { leader, followers[] }
+    this.boss         = null;
+    this.bossActive   = false;
+    this.bossThreshold = 55; // player size that triggers boss
+    this.bossSpawned  = false;
+    this.leaderActive = false;  
     this.decorations = new Decoration(algaeImages);
     this.spawnFish();
     this.spawnObstacles();
@@ -98,6 +104,20 @@ class GameManager {
         this.aiFish.push(fish);
       }
     }
+  }
+
+  spawnBoss() {
+    // Spawn boss at a distance from player
+    let angle  = random(TWO_PI);
+    let spawnX = constrain(this.player.pos.x + cos(angle) * 500, 150, 1850);
+    let spawnY = constrain(this.player.pos.y + sin(angle) * 500, 150, 2850);
+    this.boss = new BossShark(spawnX, spawnY);
+    this.bossActive = true;
+    this.bossSpawned = true;
+
+    // Announce boss
+    this.zoneTransitionMessage = 'A PREDATOR AWAKENS';
+    this.zoneTransitionTimer   = 240;
   }
 
   createFishForDepth(x, y) {
@@ -139,6 +159,55 @@ class GameManager {
     }
   }
 
+  spawnLeaderGroup() {
+    // Pick a random neutral fish as leader — or create one
+    let leader = new AIFish(
+      random(200, 1800),
+      random(300, 1200), // spawn in surface/twilight zone
+      'neutral',
+      random(22, 28),
+      0.2
+    );
+    leader.isLeader   = true;
+    leader.maxSpeed   = 2.2;
+    leader.maxForce   = 0.08;
+
+    // Create 5-8 followers (prey type, slightly smaller)
+    let followers = [];
+    let count     = floor(random(5, 9));
+    for (let i = 0; i < count; i++) {
+      let f = new AIFish(
+        leader.pos.x + random(-80, 80),
+        leader.pos.y + random(-80, 80),
+        'prey',
+        random(10, 18),
+        0.1
+      );
+      f.leaderRole = true;
+      f._buildLeaderBehaviors();
+      followers.push(f);
+      this.aiFish.push(f);
+    }
+
+    this.aiFish.push(leader);
+    this.leaderGroup  = { leader, followers };
+    this.leaderActive = true;
+  }
+
+  toggleLeaderGroup() {
+    if (this.leaderActive && this.leaderGroup) {
+      // Remove all from aiFish
+      this.aiFish = this.aiFish.filter(f =>
+        f !== this.leaderGroup.leader &&
+        !this.leaderGroup.followers.includes(f)
+      );
+      this.leaderGroup  = null;
+      this.leaderActive = false;
+    } else {
+      this.spawnLeaderGroup();
+    }
+  }
+
   update(mouseWorldPos) {
     this.timer += 1;
 
@@ -154,6 +223,78 @@ class GameManager {
     }
 
     if (this.gameState !== 'playing') return;
+
+    // ── Leader group update ──────────────────────────────────────
+    if (this.leaderActive && this.leaderGroup) {
+      let leader    = this.leaderGroup.leader;
+      let followers = this.leaderGroup.followers;
+
+      let leaderForce = leader.wander();
+      leader.applyForce(leaderForce);
+      let lBoundary = leader.boundaries(0, 0, 2000, 3000, leader.size * 2 + 30);
+      leader.applyForce(lBoundary);
+      leader.update();
+      leader.pos.x = constrain(leader.pos.x, 50, 1950);
+      leader.pos.y = constrain(leader.pos.y, 50, 2950);
+
+      for (let f of followers) {
+        if (!this.aiFish.includes(f)) continue;
+        f.bm.behaviors['leader_follow'].fn =
+          () => f.computeLeaderForce(leader, followers);
+        let force = f.bm.getSteeringForce();
+        f.applyForce(force);
+        f.update();
+        f.pos.x = constrain(f.pos.x, 50, 1950);
+        f.pos.y = constrain(f.pos.y, 50, 2950);
+      }
+
+      this.leaderGroup.followers =
+        this.leaderGroup.followers.filter(f => this.aiFish.includes(f));
+
+      if (this.leaderGroup.followers.length === 0) {
+        this.leaderActive = false;
+      }
+    }
+
+    // ── Boss spawn trigger ───────────────────────────────────────
+    if (!this.bossSpawned &&
+        this.player.getRadius() >= this.bossThreshold) {
+      this.spawnBoss();
+      triggerShake(12, 60);
+    }
+
+    // ── Boss update ───────────────────────────────────────────────
+    if (this.bossActive && this.boss) {
+      let bossForce = this.boss.computeForce(this.player);
+      this.boss.applyForce(bossForce);
+      this.boss.update();
+      this.boss.pos.x = constrain(this.boss.pos.x, 100, 1900);
+      this.boss.pos.y = constrain(this.boss.pos.y, 100, 2900);
+
+      // Boss catches player — game over
+      let bDist = p5.Vector.dist(this.player.pos, this.boss.pos);
+      if (bDist < this.player.getRadius() + this.boss.getRadius() * 0.7) {
+        if (this.player.getRadius() >= this.winSize) {
+          // Player is big enough — WIN
+          this.gameState = 'won';
+        } else {
+          // Boss eats player
+          this.gameState = 'dying';
+          this.player.triggerDeath();
+          this.dyingTimer  = 0;
+          this.deathCause  = 'eaten';
+          triggerShake(25, 60);
+        }
+      }
+
+      // Dash near boss — boss retreats briefly
+      if (this.player.dashDuration > 0) {
+        let dashDist = p5.Vector.dist(this.player.pos, this.boss.pos);
+        if (dashDist < this.boss.size * 2) {
+          this.boss.triggerRetreat();
+        }
+      }
+    }
 
     // Track zone transitions
     let newZone = this.zoneManager.getZoneName(this.player.pos.y);
@@ -204,6 +345,13 @@ class GameManager {
     // AI fish: apply current + behavior + boundary, then update
     let preyFish = this.aiFish.filter(f => f.type === 'prey');
     for (let fish of this.aiFish) {
+
+      // Skip leader and followers — they are updated separately above
+      if (this.leaderActive && this.leaderGroup) {
+        if (fish === this.leaderGroup.leader) continue;
+        if (this.leaderGroup.followers.includes(fish)) continue;
+      }
+
       // Apply gentle ocean current to AI fish only
       fish.applyForce(this.current);
 
@@ -249,11 +397,9 @@ class GameManager {
           triggerShake(5, 12); // small shake on eating
           this.player.triggerEat();
           
-          // Check win condition
-          if (this.player.getRadius() >= this.winSize) {
-            this.gameState = 'won';
+          if (this.player.getRadius() >= this.winSize && !this.bossSpawned) {
+            this.gameState = 'won'; // win before boss spawns (shouldn't happen now)
           }
-          
           // Determine particle color based on eaten fish type
           let col;
           if (fish.type === 'prey')         
@@ -289,8 +435,7 @@ class GameManager {
     }
     // Proximity shake — predator breathing down your neck
     for (let fish of this.aiFish) {
-      if (fish.type === 'predator' &&
-          fish.getRadius() > this.player.getRadius() * 1.2) {
+      if (fish.type === 'predator' && fish.getRadius() > this.player.getRadius() * 1.2) {
         let d = p5.Vector.dist(this.player.pos, fish.pos);
         if (d < this.player.getRadius() + fish.getRadius() + 30) {
           triggerShake(4, 8); // small persistent shake when danger is very close
@@ -313,6 +458,32 @@ class GameManager {
 
     for (let fish of this.aiFish) {
       fish.show(this.player.getRadius());
+    }
+
+    // Draw leader group visuals
+    if (this.leaderActive && this.leaderGroup) {
+      let leader    = this.leaderGroup.leader;
+      let followers = this.leaderGroup.followers;
+
+      // Draw connection lines from followers to leader
+      push();
+      stroke(255, 220, 80, 30);
+      strokeWeight(1);
+      for (let f of followers) {
+        if (this.aiFish.includes(f)) {
+          line(f.pos.x, f.pos.y, leader.pos.x, leader.pos.y);
+        }
+      }
+      pop();
+
+      // Draw crown above leader
+      leader.showLeaderMark();
+    }
+
+    // Draw boss
+    if (this.bossActive && this.boss) {
+      this.boss.show();
+      this.boss.showHealthBar(this.player.getRadius(), this.winSize);
     }
     
     // Draw expanding ring eat events
@@ -389,5 +560,10 @@ class GameManager {
     this.spawnFish();
     this.spawnObstacles();
     this.particles = [];
+    this.leaderGroup  = null;
+    this.leaderActive = false;
+    this.boss = null;
+    this.bossActive  = false;
+    this.bossSpawned = false;
   }
 }

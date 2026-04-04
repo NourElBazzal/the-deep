@@ -184,6 +184,12 @@ function keyPressed() {
     console.log('Loaded aggressive preset on all predators');
   }
 
+  if (key === 'f' || key === 'F') {
+    if (gameManager.gameState === 'playing') {
+      gameManager.toggleLeaderGroup();
+    }
+  }
+
   if (key === ' ') {
     if (gameManager.gameState === 'playing') {
       gameManager.getPlayer().dash();

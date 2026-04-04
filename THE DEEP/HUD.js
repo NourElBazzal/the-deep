@@ -3,13 +3,6 @@ class HUD {
     this.zoneManager = zoneManager;
     this.gameManager = gameManager;
 
-    this.zoneColors = {
-      'Surface':  color(100, 200, 255),
-      'Twilight': color(100, 180, 200),
-      'Midnight': color(60,  100, 160),
-      'Abyss':    color(120,  80, 160)
-    };
-
     // Shared animated particles for screens
     this._particles = [];
     for (let i = 0; i < 60; i++) {
@@ -33,6 +26,17 @@ class HUD {
     // Button pulse
     this._btnPulse = 0;
   }
+
+  _getZoneColor(zoneName) {
+      switch (zoneName) {
+        case 'Surface':  return color(100, 200, 255);
+        case 'Twilight': return color(60,  150, 200);
+        case 'Midnight': return color(60,  100, 160);
+        case 'Abyss': return color(120,  80, 160);
+        default:    
+         return color(100, 200, 255);
+      }
+    }
 
   update(player) {
     this.player = player;
@@ -314,7 +318,7 @@ class HUD {
     fill(120, 255, 180, 200);
     textFont('Courier New, monospace');
     textSize(16);
-    text('You have conquered the deep.', width / 2, titleY + 60);
+    text('You outgrew the shark. The ocean is yours.', width / 2, titleY + 60);
 
     // ── Stats panel ──
     let panelW = 360;
@@ -453,7 +457,9 @@ class HUD {
     text(timeStr,         panelX + panelW - 24, panelY + 60);
     let cause = this.gameManager.deathCause === 'starved'
       ? 'Starvation'
-      : 'Eaten alive';
+      : this.gameManager.bossActive
+        ? 'Devoured by the shark'
+        : 'Eaten alive';
     text(cause, panelX + panelW - 24, panelY + 92);
 
     // ── Try again button ──
@@ -505,9 +511,9 @@ class HUD {
     // ── Zone transition ──
     if (this.gameManager.zoneTransitionTimer > 0) {
       push();
-      let zoneColor = this.zoneColors[this.gameManager.zoneTransitionMessage];
-      let alpha     = map(this.gameManager.zoneTransitionTimer, 0, 180, 0, 255);
-      let c         = color(red(zoneColor), green(zoneColor), blue(zoneColor), alpha);
+      let zoneColor = this._getZoneColor(this.gameManager.zoneTransitionMessage);
+      let alpha = map(this.gameManager.zoneTransitionTimer, 0, 180, 0, 255);
+      let c  = color(red(zoneColor), green(zoneColor), blue(zoneColor), alpha);
       fill(c);
       textAlign(CENTER, CENTER);
       textFont('Georgia, serif');
@@ -548,7 +554,7 @@ class HUD {
     textAlign(RIGHT, TOP);
     textFont('Courier New, monospace');
     textSize(12);
-    text('M  mute', width - 14, 52);
+    text('F  leader group', width - 14, 64);
     pop();
 
     // ── Stats top-left ──
@@ -654,4 +660,5 @@ class HUD {
       pop();
     }
   }
+
 }

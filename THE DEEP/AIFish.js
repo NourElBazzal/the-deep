@@ -20,6 +20,9 @@ class AIFish extends Vehicle {
       this.aggressionMultiplier = 1.0;
     }
 
+    this.isLeader   = false;
+    this.leaderRole = false; // true when this fish is assigned as a follower
+
     // Build BehaviorManager for this fish
     this.bm = new BehaviorManager(this);
     this._buildBehaviors();
@@ -351,5 +354,79 @@ computeBehaviorForceBM(player, preyArray = null) {
   }
 
   return this.bm.getSteeringForce();
+}
+
+// Check if this fish is in front of the leader
+_isInFrontOfLeader(leader) {
+  // Get vector from leader to this fish
+  let toMe = p5.Vector.sub(this.pos, leader.pos);
+  // Leader's heading direction
+  let heading = leader.vel.copy().normalize();
+  // Dot product — positive means we're in front
+  return toMe.dot(heading) > 0;
+}
+
+// Compute the follow-the-leader combined force
+computeLeaderForce(leader, allFollowers) {
+  // Point behind the leader — offset opposite to leader's velocity
+  let leaderDir    = leader.vel.copy();
+  if (leaderDir.mag() < 0.01) leaderDir = createVector(-1, 0);
+  leaderDir.normalize();
+
+  let behindOffset = leaderDir.copy().mult(-(this.size * 4 + 60));
+  let targetBehind = p5.Vector.add(leader.pos, behindOffset);
+
+  let force = createVector(0, 0);
+
+  if (this._isInFrontOfLeader(leader)) {
+    // Evade the leader — we're in the way, get out
+    let evadeForce = this.evade(leader);
+    evadeForce.mult(3.0);
+    force.add(evadeForce);
+  } else {
+    // Arrive at the point behind the leader
+    let arriveForce = this.arrive(targetBehind, 30);
+    arriveForce.mult(1.8);
+    force.add(arriveForce);
+  }
+
+  // Separate from other followers
+  let sepForce = this.separate(allFollowers);
+  sepForce.mult(1.5);
+  force.add(sepForce);
+
+  // Tiny wander so they don't look frozen
+  let wanderForce = this.wander();
+  wanderForce.mult(0.15);
+  force.add(wanderForce);
+
+  force.limit(this.maxForce * 4);
+  return force;
+}
+
+// Draw leader indicator (crown-like mark above fish)
+showLeaderMark() {
+  push();
+  translate(this.pos.x, this.pos.y);
+  noStroke();
+  fill(255, 220, 0, 200);
+  // Small triangle pointing up — crown
+  triangle(-6, -this.size * 3.2,
+            0, -this.size * 4.0,
+            6, -this.size * 3.2);
+  triangle(-10, -this.size * 3.0,
+            -4, -this.size * 3.8,
+            2,  -this.size * 3.0);
+  triangle(10,  -this.size * 3.0,
+            4,  -this.size * 3.8,
+           -2,  -this.size * 3.0);
+  pop();
+}
+
+_buildLeaderBehaviors() {
+  this.bm = new BehaviorManager(this);
+  this.bm
+    .add('leader_follow', () => createVector(0, 0), 1.0) // filled at runtime
+    .add('boundary',      () => this.boundaries(0, 0, 2000, 3000, this.size * 1.8 + 20), 1.5);
 }
 }
