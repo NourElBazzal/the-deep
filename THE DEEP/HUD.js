@@ -540,6 +540,14 @@ class HUD {
     }
     pop();
 
+    push();
+    fill(80, 140, 180, 120);
+    textAlign(RIGHT, TOP);
+    textFont('Courier New, monospace');
+    textSize(12);
+    text('M  mute', width - 14, 52);
+    pop();
+
     // ── Stats top-left ──
     push();
     fill(160, 210, 240, 200);

@@ -109,16 +109,23 @@ class GameManager {
       let arriveForce = this.player.arrive(mouseWorldPos);
       this.player.applyForce(arriveForce);
     }
-    let boundaryForce = this.player.boundaries(0, 0, 2000, 3000, 50);
+
+    // Player boundary — margin based on actual display size
+    let playerMargin = this.player.size * 2.6 + 20;
+    let boundaryForce = this.player.boundaries(
+      0, 0, 2000, 3000, playerMargin
+    );
     this.player.applyForce(boundaryForce);
+
     for (let obs of this.obstacles) {
       this.player.applyForce(obs.computeAvoidanceForce(this.player));
     }
     this.player.update();
 
     // Hard clamp player inside world bounds
-    this.player.pos.x = constrain(this.player.pos.x, 0, 2000);
-    this.player.pos.y = constrain(this.player.pos.y, 0, 3000);
+    let pm = this.player.size * 2;
+    this.player.pos.x = constrain(this.player.pos.x, pm, 2000 - pm);
+    this.player.pos.y = constrain(this.player.pos.y, pm, 3000 - pm);
 
     // AI fish: apply current + behavior + boundary, then update
     let preyFish = this.aiFish.filter(f => f.type === 'prey');
@@ -129,14 +136,18 @@ class GameManager {
       let preyArray = (fish.type === 'prey') ? preyFish : null;
       let behaviorForce = fish.computeBehaviorForce(this.player, preyArray);
       fish.applyForce(behaviorForce);
-      let bForce = fish.boundaries(0, 0, 2000, 3000, 50);
+
+      let fishMargin = fish.size * 1.8 + 20;
+      let bForce = fish.boundaries(0, 0, 2000, 3000, fishMargin);
       fish.applyForce(bForce);
+
       for (let obs of this.obstacles) {
         fish.applyForce(obs.computeAvoidanceForce(fish));
       }
       fish.update();
-      fish.pos.x = constrain(fish.pos.x, 0, 2000);
-      fish.pos.y = constrain(fish.pos.y, 0, 3000);
+      let fm = fish.size * 1.5;
+      fish.pos.x = constrain(fish.pos.x, fm, 2000 - fm);
+      fish.pos.y = constrain(fish.pos.y, fm, 3000 - fm);
     }
 
     // Check collisions

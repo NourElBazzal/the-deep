@@ -6,6 +6,7 @@ let zoneManager;
 var algaeImages = [];
 let showDebug = false;
 var fishSprites = {};
+var sounds = {};
 
 function preload() {
   algaeImages = [];
@@ -21,6 +22,9 @@ function preload() {
   fishSprites.dash   = loadImage('assets/fish/speed_dash_animation.png');
   fishSprites.flip   = loadImage('assets/fish/flip_direction.png');
   fishSprites.death  = loadImage('assets/fish/death_animation.png');
+
+  sounds = {};
+  sounds.ambient = loadSound('assets/sounds/ambient.mp3');
 }
 
 function setup() {
@@ -31,6 +35,7 @@ function setup() {
   oceanBg = new OceanBackground();
   gameManager = new GameManager(zoneManager);
   hud = new HUD(zoneManager, gameManager);
+
 }
 
 function draw() {
@@ -46,6 +51,26 @@ function draw() {
   let mouseWorldPos = getMouseWorldPos();
   gameManager.update(mouseWorldPos);
   hud.update(gameManager.getPlayer());
+
+  // Adjust ambient volume based on depth and game state
+  if (sounds.ambient) {
+    if (gameManager.isStartScreen()) {
+      sounds.ambient.setVolume(0.3);
+    } else if (gameManager.gameState === 'playing' || 
+              gameManager.gameState === 'dying') {
+      let depth = gameManager.getPlayer().pos.y;
+      // Surface = quieter and brighter, Abyss = louder and deeper
+      let targetVol = map(depth, 0, 3000, 0.2, 0.7);
+      // Smooth volume transition
+      let currentVol = sounds.ambient.getVolume();
+      let newVol = lerp(currentVol, targetVol, 0.02);
+      sounds.ambient.setVolume(newVol);
+    } else {
+      // Game over or won — fade out
+      let currentVol = sounds.ambient.getVolume();
+      sounds.ambient.setVolume(lerp(currentVol, 0.05, 0.02));
+    }
+  }
 
   // Apply camera
   push();
@@ -100,11 +125,26 @@ function keyPressed() {
       gameManager.getPlayer().dash();
     }
   }
+
+  if (key === 'm' || key === 'M') {
+    if (sounds.ambient.getVolume() > 0) {
+      sounds.ambient.setVolume(0);
+    } else {
+      sounds.ambient.setVolume(0.4);
+    }
+  }
 }
 
 function mousePressed() {
   if (gameManager.isStartScreen()) {
     gameManager.startGame();
+    
+    // Start music on first user interaction
+    if (sounds.ambient && !sounds.ambient.isPlaying()) {
+      sounds.ambient.setLoop(true);
+      sounds.ambient.setVolume(0.3);
+      sounds.ambient.play();
+    }
   }
 }
 
