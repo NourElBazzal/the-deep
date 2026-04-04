@@ -10,6 +10,14 @@ class Camera {
   follow(target) {
     let targetPos = target.pos.copy();
     this.pos.lerp(targetPos, this.lerpSpeed);
+
+    // Clamp camera so edges of world are never visible
+    // Half screen size in world coords is the margin needed
+    let halfW = width  / 2;
+    let halfH = height / 2;
+
+    this.pos.x = constrain(this.pos.x, halfW,  2000 - halfW);
+    this.pos.y = constrain(this.pos.y, halfH,  3000 - halfH);
   }
 
   apply() {

@@ -4,6 +4,10 @@ class PlayerFish extends Vehicle {
     this.size = 20;
     this.maxSpeed = 3;
     this.maxForce = 0.1;
+    this.hunger       = 100;   // current hunger 0-100
+    this.maxHunger    = 100;
+    this.hungerDecay  = 0.008; // how fast hunger drains per frame
+    this.isStarving   = false; // true when hunger < 20
     this.sprites = sprites;
 
     this.dashCooldown = 0;
@@ -308,5 +312,25 @@ class PlayerFish extends Vehicle {
       this.maxSpeed = max(this.normalMaxSpeed, this.maxSpeed - 0.1);
     }
     if (this.dashCooldown > 0) this.dashCooldown--;
+  }
+
+  updateHunger() {
+    this.hunger -= this.hungerDecay;
+    this.hunger  = max(0, this.hunger);
+    this.isStarving = this.hunger < 20;
+
+    // When starving, slow down slightly
+    if (this.isStarving) {
+      this.normalMaxSpeed = max(1.0, this.normalMaxSpeed - 0.0005);
+    }
+
+    return this.hunger <= 0; // returns true if dead from starvation
+  }
+
+  feed(amount) {
+    this.hunger = min(this.maxHunger, this.hunger + amount);
+    this.isStarving = this.hunger < 20;
+    // Restore speed if was starving
+    this.normalMaxSpeed = 3;
   }
 }

@@ -451,7 +451,10 @@ class HUD {
     textAlign(RIGHT, CENTER);
     text(finalSize,       panelX + panelW - 24, panelY + 28);
     text(timeStr,         panelX + panelW - 24, panelY + 60);
-    text('Eaten alive',   panelX + panelW - 24, panelY + 92);
+    let cause = this.gameManager.deathCause === 'starved'
+      ? 'Starvation'
+      : 'Eaten alive';
+    text(cause, panelX + panelW - 24, panelY + 92);
 
     // ── Try again button ──
     let btnY   = height * 0.74;
@@ -589,5 +592,66 @@ class HUD {
     textSize(12);
     text(`${size.toFixed(1)} / ${this.gameManager.winSize}`, width / 2, barY - 4);
     pop();
+
+    // ── Hunger bar ──
+    push();
+    let hunger    = this.player.hunger;
+    let maxHunger = this.player.maxHunger;
+    let hBarW     = 160;
+    let hBarH     = 6;
+    let hBarX     = 14;
+    let hBarY     = height - 28;
+
+    // Color shifts red as hunger drops
+    let hCol;
+    if (hunger > 60)      hCol = color(80,  220, 120); // green
+    else if (hunger > 30) hCol = color(240, 180, 40);  // amber
+    else                  hCol = color(220, 60,  60);  // red
+
+    // Background
+    fill(20, 30, 40);
+    noStroke();
+    rect(hBarX, hBarY, hBarW, hBarH, 3);
+
+    // Fill
+    fill(hCol);
+    rect(hBarX, hBarY, hBarW * (hunger / maxHunger), hBarH, 3);
+
+    // Border
+    stroke(red(hCol), green(hCol), blue(hCol), 120);
+    strokeWeight(1);
+    noFill();
+    rect(hBarX, hBarY, hBarW, hBarH, 3);
+
+    // Label
+    noStroke();
+    fill(red(hCol), green(hCol), blue(hCol), 180);
+    textFont('Courier New, monospace');
+    textAlign(LEFT, BOTTOM);
+    textSize(12);
+    text(`HUNGER  ${Math.round(hunger)}%`, hBarX, hBarY - 4);
+
+    pop();
+
+    // ── Starvation warning ──
+    if (this.player.isStarving) {
+      push();
+      // Pulsing red warning text
+      let pulseAlpha = map(sin(frameCount * 0.15), -1, 1, 120, 255);
+      fill(255, 60, 60, pulseAlpha);
+      textAlign(CENTER, CENTER);
+      textFont('Courier New, monospace');
+      textSize(15);
+      text('STARVING — EAT NOW', width / 2, height - 55);
+
+      // Red vignette on screen edges
+      noFill();
+      for (let i = 0; i < 4; i++) {
+        stroke(200, 30, 30, map(i, 0, 3, 40, 8) * (pulseAlpha / 255));
+        strokeWeight(i * 6 + 4);
+        rect(0, 0, width, height);
+      }
+      pop();
+    }
   }
 }

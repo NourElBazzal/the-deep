@@ -19,6 +19,11 @@ class AIFish extends Vehicle {
     } else {
       this.aggressionMultiplier = 1.0;
     }
+
+    // Build BehaviorManager for this fish
+    this.bm = new BehaviorManager(this);
+    this._buildBehaviors();
+
   }
 
   computeBehaviorForce(player, preyArray = null) {
@@ -288,4 +293,63 @@ class AIFish extends Vehicle {
   getRadius() {
     return this.size;
   }
+
+  _buildBehaviors() {
+    // Register all behaviors with weights based on role
+    if (this.type === 'prey') {
+      this.bm
+        .add('wander',    () => this.wander(),              1.0)
+        .add('flock',     () => createVector(0, 0),         1.0) // filled at runtime
+        .add('flee',      () => createVector(0, 0),         2.5) // filled at runtime
+        .add('boundary',  () => this.boundaries(0, 0, 2000, 3000, this.size * 1.8 + 20), 1.5);
+
+    } else if (this.type === 'neutral') {
+      this.bm
+        .add('wander',    () => this.wander(),              1.0)
+        .add('boundary',  () => this.boundaries(0, 0, 2000, 3000, this.size * 1.8 + 20), 1.5);
+
+    } else if (this.type === 'predator') {
+      this.bm
+        .add('wander',    () => this.wander(),              0.6)
+        .add('pursue',    () => createVector(0, 0),         2.0) // filled at runtime
+        .add('boundary',  () => this.boundaries(0, 0, 2000, 3000, this.size * 1.8 + 20), 1.5);
+    }
+}
+
+// Update runtime behaviors that need external references
+// then return the combined force
+computeBehaviorForceBM(player, preyArray = null) {
+  if (this.type === 'prey') {
+    // Update flee force dynamically
+    if (player &&
+        player.getRadius() > this.size &&
+        p5.Vector.dist(this.pos, player.pos) < this.fleeDistance) {
+      this.bm.behaviors['flee'].fn = () => this.computeFleeForce(player.pos);
+      this.bm.activate('flee');
+      this.bm.deactivate('wander');
+      this.bm.deactivate('flock');
+    } else {
+      this.bm.deactivate('flee');
+      this.bm.activate('wander');
+      this.bm.activate('flock');
+      // Update flock force
+      if (preyArray) {
+        this.bm.behaviors['flock'].fn = () => this.flock(preyArray);
+      }
+    }
+
+  } else if (this.type === 'predator') {
+    let adjustedDist = this.pursueDistance * this.aggressionMultiplier;
+    if (player &&
+        player.getRadius() < this.size &&
+        p5.Vector.dist(this.pos, player.pos) < adjustedDist) {
+      this.bm.behaviors['pursue'].fn = () => this.pursue(player);
+      this.bm.activate('pursue');
+    } else {
+      this.bm.deactivate('pursue');
+    }
+  }
+
+  return this.bm.getSteeringForce();
+}
 }

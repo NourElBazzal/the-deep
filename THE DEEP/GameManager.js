@@ -1,3 +1,58 @@
+class Particle {
+  constructor(x, y, col) {
+    this.pos = createVector(x, y);
+    // Random burst direction
+    this.vel = p5.Vector.random2D().mult(random(1.5, 5));
+    this.acc = createVector(0, 0.06); // slight gravity drift downward
+    this.size = random(4, 12);
+    this.alpha = 255;
+    this.decay = random(6, 12); // how fast it fades
+    this.col = col; // [r, g, b]
+    this.spin = random(-0.15, 0.15);
+    this.angle = random(TWO_PI);
+  }
+
+  update() {
+    this.vel.add(this.acc);
+    this.vel.mult(0.92); // drag — slows down naturally
+    this.pos.add(this.vel);
+    this.alpha -= this.decay;
+    this.angle += this.spin;
+    this.size *= 0.97; // shrinks slightly
+  }
+
+  isDead() {
+    return this.alpha <= 0 || this.size < 1;
+  }
+
+  show() {
+    push();
+    translate(this.pos.x, this.pos.y);
+    rotate(this.angle);
+    noStroke();
+    fill(this.col[0], this.col[1], this.col[2], this.alpha);
+    // Mix of circle and diamond shapes
+    if (this.size > 7) {
+      // Diamond shape for bigger particles
+      beginShape();
+      vertex(0, -this.size * 0.6);
+      vertex(this.size * 0.4, 0);
+      vertex(0, this.size * 0.6);
+      vertex(-this.size * 0.4, 0);
+      endShape(CLOSE);
+    } else {
+      circle(0, 0, this.size);
+    }
+    // Bright white core on large particles
+    if (this.size > 6 && this.alpha > 150) {
+      fill(255, 255, 255, this.alpha * 0.4);
+      circle(0, 0, this.size * 0.35);
+    }
+    pop();
+  }
+}
+
+
 class GameManager {
   constructor(zoneManager) {
     this.zoneManager = zoneManager;
@@ -17,6 +72,9 @@ class GameManager {
     this.decorations = new Decoration(algaeImages);
     this.spawnFish();
     this.spawnObstacles();
+    this.particles = [];
+    this.dyingTimer = 0;
+    this.deathCause = '';
   }
 
   spawnFish() {
@@ -70,7 +128,13 @@ class GameManager {
         x = random(0, 2000);
         y = random(0, 3000);
       } while (x > 900 && x < 1100 && y > 1400 && y < 1600);
-      let radius = random(20, 40);
+
+      // Deeper wreckage is larger and more imposing
+      let depthFactor = y / 3000;
+      let radius = random(
+        lerp(18, 28, depthFactor),
+        lerp(32, 55, depthFactor)
+      );
       this.obstacles.push(new Obstacle(x, y, radius));
     }
   }
@@ -122,6 +186,16 @@ class GameManager {
     }
     this.player.update();
 
+    // Update hunger — returns true if starved to death
+    let starved = this.player.updateHunger();
+    if (starved) {
+      this.gameState = 'dying';
+      this.player.triggerDeath();
+      this.dyingTimer = 0;
+      this.deathCause = 'starved'; // track cause for HUD
+      triggerShake(18, 45);
+    }
+
     // Hard clamp player inside world bounds
     let pm = this.player.size * 2;
     this.player.pos.x = constrain(this.player.pos.x, pm, 2000 - pm);
@@ -134,12 +208,8 @@ class GameManager {
       fish.applyForce(this.current);
 
       let preyArray = (fish.type === 'prey') ? preyFish : null;
-      let behaviorForce = fish.computeBehaviorForce(this.player, preyArray);
+      let behaviorForce = fish.computeBehaviorForceBM(this.player, preyArray);
       fish.applyForce(behaviorForce);
-
-      let fishMargin = fish.size * 1.8 + 20;
-      let bForce = fish.boundaries(0, 0, 2000, 3000, fishMargin);
-      fish.applyForce(bForce);
 
       for (let obs of this.obstacles) {
         fish.applyForce(obs.computeAvoidanceForce(fish));
@@ -174,6 +244,9 @@ class GameManager {
           let ratio = fish.getRadius() / this.player.getRadius();
           let growAmount = fish.getRadius() * 0.1 + ratio * fish.getRadius() * 0.4;
           this.player.grow(growAmount);
+          let feedAmount = map(fish.getRadius(), 10, 35, 8, 25);
+          this.player.feed(feedAmount);
+          triggerShake(5, 12); // small shake on eating
           this.player.triggerEat();
           
           // Check win condition
@@ -181,16 +254,46 @@ class GameManager {
             this.gameState = 'won';
           }
           
+          // Determine particle color based on eaten fish type
+          let col;
+          if (fish.type === 'prey')         
+            col = [255, 200, 80];   // golden
+          else if (fish.type === 'neutral') 
+            col = [100, 255, 160];  // green
+          else                              
+            col = [255, 100, 100];  // red
+
+          // Burst count scales with fish size — big fish = more particles
+          let burstCount = floor(map(fish.getRadius(), 10, 35, 8, 22));
+
+          for (let p = 0; p < burstCount; p++) {
+            this.particles.push(new Particle(fish.pos.x, fish.pos.y, col));
+          }
+
+          // Keep the eat event for the expanding ring effect
           this.eatEvents.push({
             x: fish.pos.x,
             y: fish.pos.y,
             timer: 20
           });
+
           this.aiFish.splice(i, 1);
         } else if (fish.type === 'predator' && fish.getRadius() > this.player.getRadius() * 1.2) {
           this.gameState = 'dying';
           this.player.triggerDeath();
           this.dyingTimer = 0;
+          this.deathCause = 'eaten'; // track cause for HUD
+          triggerShake(18, 45); // big shake on death
+        }
+      }
+    }
+    // Proximity shake — predator breathing down your neck
+    for (let fish of this.aiFish) {
+      if (fish.type === 'predator' &&
+          fish.getRadius() > this.player.getRadius() * 1.2) {
+        let d = p5.Vector.dist(this.player.pos, fish.pos);
+        if (d < this.player.getRadius() + fish.getRadius() + 30) {
+          triggerShake(4, 8); // small persistent shake when danger is very close
         }
       }
     }
@@ -212,22 +315,29 @@ class GameManager {
       fish.show(this.player.getRadius());
     }
     
-    // Draw and update eat events
+    // Draw expanding ring eat events
     for (let i = this.eatEvents.length - 1; i >= 0; i--) {
       let event = this.eatEvents[i];
-      let alpha = map(event.timer, 0, 20, 0, 100);
-      let radius = map(event.timer, 0, 20, 20, 5);
-      
+      let alpha  = map(event.timer, 0, 20, 0, 180);
+      let radius = map(event.timer, 20, 0, 0, 60);
+
       push();
-      fill(100, 255, 150, alpha);
-      noStroke();
+      noFill();
+      stroke(255, 255, 200, alpha);
+      strokeWeight(map(event.timer, 20, 0, 3, 0.5));
       circle(event.x, event.y, radius * 2);
       pop();
-      
+
       event.timer--;
-      if (event.timer < 0) {
-        this.eatEvents.splice(i, 1);
-      }
+      if (event.timer < 0) this.eatEvents.splice(i, 1);
+    }
+
+    // Draw and update particles
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      let p = this.particles[i];
+      p.update();
+      p.show();
+      if (p.isDead()) this.particles.splice(i, 1);
     }
   }
 
@@ -272,10 +382,12 @@ class GameManager {
     this.gameState = 'playing';
     this.timer = 0;
     this.dyingTimer = 0;
+    this.deathCause = '';
     this.currentZone = this.zoneManager.getZoneName(this.player.pos.y);
     this.zoneTransitionMessage = '';
     this.zoneTransitionTimer = 0;
     this.spawnFish();
     this.spawnObstacles();
+    this.particles = [];
   }
 }

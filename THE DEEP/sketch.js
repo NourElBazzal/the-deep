@@ -7,6 +7,9 @@ var algaeImages = [];
 let showDebug = false;
 var fishSprites = {};
 var sounds = {};
+var shakeAmount = 0;
+var shakeDuration = 0;
+var savedConfig = null;
 
 function preload() {
   algaeImages = [];
@@ -36,10 +39,16 @@ function setup() {
   gameManager = new GameManager(zoneManager);
   hud = new HUD(zoneManager, gameManager);
 
+  // If screen is wider than world, the camera clamp will feel locked
+  // Log a warning so you know
+  if (width > 2000) {
+    console.warn(`Screen (${width}px) is wider than world (2000px). Consider increasing worldWidth.`);
+  }
+
 }
 
 function draw() {
-  background(10, 42, 74);
+  background(5, 10, 20);
 
   // If start screen, just show HUD and return
   if (gameManager.isStartScreen()) {
@@ -72,17 +81,51 @@ function draw() {
     }
   }
 
-  // Apply camera
   push();
-  camera.apply();
 
-  // Draw world
+  // Screen shake
+  if (shakeDuration > 0) {
+    shakeDuration--;
+    shakeAmount = lerp(shakeAmount, 0, 0.15);
+    translate(
+      random(-shakeAmount, shakeAmount),
+      random(-shakeAmount, shakeAmount)
+    );
+  } else {
+    shakeAmount = 0;
+  }
+
+  camera.apply();
   oceanBg.show();
   gameManager.show();
 
   // Debug overlay pass
   if (showDebug) {
     gameManager.showDebug();
+  }
+
+  // BehaviorManager debug overlay
+  if (showDebug && gameManager.gameState === 'playing') {
+    push();
+    fill(180, 220, 255, 200);
+    textFont('Courier New, monospace');
+    textSize(11);
+    textAlign(LEFT, TOP);
+
+    // Show first 3 fish as samples
+    let sample = gameManager.aiFish.slice(0, 3);
+    let yOff   = 80;
+    for (let fish of sample) {
+      text(`── ${fish.type} ──`, 14, yOff);
+      yOff += 14;
+      let lines = fish.bm.describe().split('\n');
+      for (let line of lines) {
+        text(line, 14, yOff);
+        yOff += 13;
+      }
+      yOff += 6;
+    }
+    pop();
   }
 
   pop();
@@ -120,17 +163,30 @@ function keyPressed() {
     camera.pos.set(gameManager.getPlayer().pos.x, gameManager.getPlayer().pos.y);
   }
 
-  if (key === ' ') {
-    if (gameManager.gameState === 'playing') {
-      gameManager.getPlayer().dash();
+  if (key === 's' || key === 'S') {
+    let predator = gameManager.aiFish.find(f => f.type === 'predator');
+    if (predator) {
+      savedConfig = predator.bm.save();
+      console.log('Saved config:', JSON.stringify(savedConfig, null, 2));
     }
   }
 
-  if (key === 'm' || key === 'M') {
-    if (sounds.ambient.getVolume() > 0) {
-      sounds.ambient.setVolume(0);
-    } else {
-      sounds.ambient.setVolume(0.4);
+  if (key === 'l' || key === 'L') {
+    // Load an "aggressive predator" preset onto all predators
+    let aggressivePreset = {
+      wander:   { weight: 0.2, active: true  },
+      pursue:   { weight: 4.0, active: true  },
+      boundary: { weight: 2.0, active: true  }
+    };
+    gameManager.aiFish
+      .filter(f => f.type === 'predator')
+      .forEach(f => f.bm.load(aggressivePreset));
+    console.log('Loaded aggressive preset on all predators');
+  }
+
+  if (key === ' ') {
+    if (gameManager.gameState === 'playing') {
+      gameManager.getPlayer().dash();
     }
   }
 }
@@ -150,4 +206,9 @@ function mousePressed() {
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+}
+
+function triggerShake(amount, duration) {
+  shakeAmount = amount;
+  shakeDuration = duration;
 }
