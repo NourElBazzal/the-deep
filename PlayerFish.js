@@ -33,31 +33,31 @@ class PlayerFish extends Vehicle {
     this.anims = {};
 
     if (sprites.idle) {
-      this.anims.idle = new SpriteSheet(sprites.idle, 250, 240, 8, 6);
+      this.anims.idle = new SpriteSheet(sprites.idle, 510, 489, 8, 6);
       this.anims.idle.setLooping(true);
     }
     if (sprites.eating) {
-      this.anims.eating = new SpriteSheet(sprites.eating, 333, 327, 6, 8);
+      this.anims.eating = new SpriteSheet(sprites.eating, 583, 571, 6, 8);
       this.anims.eating.setLooping(false);
     }
     if (sprites.dash) {
-      this.anims.dash = new SpriteSheet(sprites.dash, 400, 400, 5, 8);
+      this.anims.dash = new SpriteSheet(sprites.dash, 632, 632, 5, 8);
       this.anims.dash.setLooping(false);
     }
     if (sprites.flip) {
-      this.anims.flip = new SpriteSheet(sprites.flip, 285, 280, 7, 18);
+      this.anims.flip = new SpriteSheet(sprites.flip, 733, 720, 7, 18);
       this.anims.flip.setLooping(false);
     }
     if (sprites.death) {
-      this.anims.death = new SpriteSheet(sprites.death, 285, 280, 7, 6);
+      this.anims.death = new SpriteSheet(sprites.death, 733, 720, 7, 6);
       this.anims.death.setLooping(false);
     }
     if (sprites.swim_up) {
-      this.anims.swim_up = new SpriteSheet(sprites.swim_up, 333, 327, 6, 8);
+      this.anims.swim_up = new SpriteSheet(sprites.swim_up, 583, 571, 6, 8);
       this.anims.swim_up.setLooping(true);
     }
     if (sprites.swim_down) {
-      this.anims.swim_down = new SpriteSheet(sprites.swim_down, 333, 327, 6, 8);
+      this.anims.swim_down = new SpriteSheet(sprites.swim_down, 583, 571, 6, 8);
       this.anims.swim_down.setLooping(true);
     }
 
