@@ -16,7 +16,7 @@ class PlayerFish extends Vehicle {
     this.dashMaxSpeed = 7;
 
     this._flipCooldown = 0;
-    this._flipCooldownFrames = 45; // wait 45 frames before allowing another flip
+    this._flipCooldownFrames = 60; // wait 60 frames before allowing another flip
 
     // Animation state
     this.state = 'idle';
@@ -27,7 +27,7 @@ class PlayerFish extends Vehicle {
     // direction is stable for N frames to avoid jitter
     this._directionBuffer = 0;
     this._pendingDirection = null;
-    this._directionStableFrames = 25;
+    this._directionStableFrames = 35; // frames of stable direction before flipping
 
     // Build SpriteSheet objects
     this.anims = {};
@@ -37,7 +37,7 @@ class PlayerFish extends Vehicle {
       this.anims.idle.setLooping(true);
     }
     if (sprites.eating) {
-      this.anims.eating = new SpriteSheet(sprites.eating, 400, 400, 5, 7);
+      this.anims.eating = new SpriteSheet(sprites.eating, 333, 327, 6, 8);
       this.anims.eating.setLooping(false);
     }
     if (sprites.dash) {
@@ -45,17 +45,15 @@ class PlayerFish extends Vehicle {
       this.anims.dash.setLooping(false);
     }
     if (sprites.flip) {
-      this.anims.flip = new SpriteSheet(sprites.flip, 400, 400, 5, 8);
+      this.anims.flip = new SpriteSheet(sprites.flip, 285, 280, 7, 18);
       this.anims.flip.setLooping(false);
     }
     if (sprites.death) {
-      this.anims.death = new SpriteSheet(
-        sprites.death, Math.round(2000 / 7), 280, 7, 5
-      );
+      this.anims.death = new SpriteSheet(sprites.death, 285, 280, 7, 6);
       this.anims.death.setLooping(false);
     }
     if (sprites.swim_up) {
-      this.anims.swim_up = new SpriteSheet(sprites.swim_up, 333, 325, 6, 8);
+      this.anims.swim_up = new SpriteSheet(sprites.swim_up, 333, 327, 6, 8);
       this.anims.swim_up.setLooping(true);
     }
     if (sprites.swim_down) {
@@ -98,7 +96,7 @@ class PlayerFish extends Vehicle {
     }
 
     // Only count direction when fish is actually moving
-    if (this.vel.mag() < 1.2) return;
+    if (this.vel.mag() < 1.8) return;
 
     let movingLeft = this.vel.x < 0;
 
@@ -199,13 +197,14 @@ class PlayerFish extends Vehicle {
 
     anim.update();
 
-    // Handle one-shot animation completion
     if (anim.done && this.state !== 'idle') {
+      if (this.state === 'death') return; // stay on last frame forever
       if (this.state === 'flip') {
         this.facingLeft = this._pendingDirection !== null
           ? this._pendingDirection
           : (this.vel.x < 0);
         this.flipPlaying = false;
+        this._flipCooldown = this._flipCooldownFrames;
       }
       this.state = 'idle';
       if (this.anims.idle) this.anims.idle.reset();

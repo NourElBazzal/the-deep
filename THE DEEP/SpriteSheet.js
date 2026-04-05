@@ -54,7 +54,7 @@ class SpriteSheet {
 
     push();
     imageMode(CENTER);
-    if (!movingLeft) scale(-1, 1);
+    if (movingLeft) scale(-1, 1);
     image(this.img, 0, 0, displayW, displayH, sx, sy, this.frameWidth, this.frameHeight);
     pop();
   }

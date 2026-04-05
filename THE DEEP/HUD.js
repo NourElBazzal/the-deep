@@ -42,7 +42,7 @@ class HUD {
     this.player = player;
   }
 
-  // ── Shared helpers ───────────────────────────────────────────────
+  // Shared helpers─────────────────────────────────────────────
 
   _updateParticles() {
     for (let p of this._particles) {
@@ -92,7 +92,7 @@ class HUD {
     }
   }
 
-  // ── Start screen ─────────────────────────────────────────────────
+  // Start screen
 
   showStartScreen() {
     this._updateParticles();
@@ -129,7 +129,7 @@ class HUD {
     // Bioluminescent particles
     this._drawParticles();
 
-    // ── Depth silhouette shapes (seabed rocks) ──
+    // Depth silhouette shapes (seabed rocks)
     fill(0, 5, 18);
     noStroke();
     // left rock cluster
@@ -141,7 +141,7 @@ class HUD {
     // center dip
     ellipse(width * 0.5,   height * 0.99, 300, 50);
 
-    // ── Ambient light from above ──
+    // Ambient light from above
     noStroke();
     for (let i = 3; i >= 0; i--) {
       let a = lerp(0, 25, i / 3);
@@ -149,7 +149,7 @@ class HUD {
       ellipse(width / 2, -60, width * 0.9 - i * 80, 350 - i * 40);
     }
 
-    // ── Title: THE DEEP ──
+    // Title: THE DEEP 
     let titleY   = height * 0.35;
     let pulse    = sin(frameCount * 0.04) * 8;
 
@@ -173,7 +173,7 @@ class HUD {
     let ruleW = 320;
     line(width / 2 - ruleW / 2, titleY + 76, width / 2 + ruleW / 2, titleY + 76);
 
-    // ── Typewriter tagline ──
+    // Typewriter tagline
     noStroke();
     fill(140, 210, 240, 200);
     textFont('Courier New, monospace');
@@ -183,13 +183,14 @@ class HUD {
     let cursor = (!this._typeDone && floor(frameCount / 20) % 2 === 0) ? '_' : '';
     text(shown + cursor, width / 2, titleY + 108);
 
-    // ── Controls hint ──
+    // Controls hint
     fill(80, 160, 200, 160);
     textSize(13);
     textFont('Courier New, monospace');
     text('Mouse to swim   ·   SPACE to dash   ·   Eat smaller fish to grow', width / 2, height * 0.62);
-
-    // ── DIVE IN button ──
+    text("Reach size 80 before time runs out", width / 2, height / 2 + 90);
+   
+    // DIVE IN button
     let btnW    = 200;
     let btnH    = 52;
     let btnX    = width / 2 - btnW / 2;
@@ -218,7 +219,7 @@ class HUD {
     textAlign(CENTER, CENTER);
     text('DIVE IN', width / 2, btnY + btnH / 2);
 
-    // ── Zone preview pills ──
+    // Zone preview pills
     let zones = [
       { name: 'Surface',  col: color(100, 200, 255) },
       { name: 'Twilight', col: color(60,  150, 200) },
@@ -251,7 +252,7 @@ class HUD {
       text(z.name, px + pillW / 2, pillY + 14);
     }
 
-    // ── Version tag ──
+    // Version tag
     noStroke();
     fill(40, 100, 140, 120);
     textSize(11);
@@ -261,8 +262,7 @@ class HUD {
     pop();
   }
 
-  // ── Win screen ───────────────────────────────────────────────────
-
+  // Win screen
   showWinScreen() {
     push();
 
@@ -271,7 +271,7 @@ class HUD {
     // Golden light rays from surface
     noStroke();
     for (let i = 0; i < 8; i++) {
-      let angle = map(i, 0, 8, -PI / 5, PI / 5);
+      let angle  = map(i, 0, 8, -PI / 5, PI / 5);
       let rayLen = height * 1.4;
       let rayW   = 60;
       let alpha  = sin(frameCount * 0.02 + i * 0.8) * 15 + 25;
@@ -299,12 +299,11 @@ class HUD {
     ellipse(width * 0.15, height * 0.97, 200, 60);
     ellipse(width * 0.85, height * 0.97, 220, 55);
 
-    // ── APEX PREDATOR title ──
-    let titleY = height * 0.32;
+    // APEX PREDATOR title
+    let titleY = height * 0.28;
     textFont('Georgia, serif');
     textAlign(CENTER, CENTER);
 
-    // Gold glow
     for (let g = 4; g >= 0; g--) {
       fill(255, 200, 50, map(g, 0, 4, 50, 0));
       textSize(72 + g * 4);
@@ -320,11 +319,22 @@ class HUD {
     textSize(16);
     text('You outgrew the shark. The ocean is yours.', width / 2, titleY + 60);
 
-    // ── Stats panel ──
+    // Compute stats
+    let finalSize = this.player ? this.player.getRadius().toFixed(1) : '--';
+    let survived  = this.gameManager.getTimeSurvived();
+    let secsLeft  = this.gameManager.getElapsedSeconds();
+    let sMins     = Math.floor(survived / 60);
+    let sSecs     = survived % 60;
+    let timeTaken = sMins > 0 ? `${sMins}m ${sSecs}s` : `${sSecs}s`;
+    let lMins     = Math.floor(secsLeft / 60);
+    let lSecs     = secsLeft % 60;
+    let timeLeft  = `${lMins}:${lSecs.toString().padStart(2, '0')} left`;
+
+    // Stats panel
     let panelW = 360;
     let panelH = 130;
     let panelX = width / 2 - panelW / 2;
-    let panelY = height * 0.50;
+    let panelY = height * 0.48;
 
     fill(0, 40, 20, 180);
     stroke(80, 200, 120, 100);
@@ -336,24 +346,20 @@ class HUD {
     textAlign(LEFT, CENTER);
     textSize(15);
 
-    let finalSize = this.player ? this.player.getRadius().toFixed(1) : '--';
-    let finalTime = this.gameManager.getElapsedSeconds();
-    let mins      = Math.floor(finalTime / 60);
-    let secs      = finalTime % 60;
-    let timeStr   = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-
     fill(80, 220, 140);
-    text('▸ Final size',  panelX + 24, panelY + 34);
-    text('▸ Time taken',  panelX + 24, panelY + 66);
-    text('▸ Rank',        panelX + 24, panelY + 98);
+    text('▸ Final size',  panelX + 24, panelY + 28);
+    text('▸ Time taken',  panelX + 24, panelY + 62);
+    text('▸ Time left',   panelX + 24, panelY + 96);
+    text('▸ Rank',        panelX + 24, panelY + 115);
 
     fill(220, 255, 220);
     textAlign(RIGHT, CENTER);
-    text(finalSize,                   panelX + panelW - 24, panelY + 34);
-    text(timeStr,                     panelX + panelW - 24, panelY + 66);
-    text(this._rank(finalTime),       panelX + panelW - 24, panelY + 98);
+    text(finalSize,              panelX + panelW - 24, panelY + 28);
+    text(timeTaken,              panelX + panelW - 24, panelY + 62);
+    text(timeLeft,               panelX + panelW - 24, panelY + 96);
+    text(this._rank(survived),   panelX + panelW - 24, panelY + 115);
 
-    // ── Restart button ──
+    // Restart button
     let btnY   = height * 0.76;
     let bPulse = sin(frameCount * 0.05) * 0.12 + 0.88;
 
@@ -372,7 +378,7 @@ class HUD {
     pop();
   }
 
-  // ── Game over screen ─────────────────────────────────────────────
+  // Game over screen
 
   showGameOver() {
     push();
@@ -403,7 +409,7 @@ class HUD {
     ellipse(width * 0.88, height * 0.97, 180, 50);
     ellipse(width * 0.5,  height * 0.99, 350, 40);
 
-    // ── CONSUMED title ──
+    // CONSUMED title
     let titleY = height * 0.30;
     textFont('Georgia, serif');
     textAlign(CENTER, CENTER);
@@ -424,7 +430,7 @@ class HUD {
     textSize(15);
     text('Something larger was hungry too.', width / 2, titleY + 62);
 
-    // ── Stats panel ──
+    // Stats panel
     let panelW = 360;
     let panelH = 110;
     let panelX = width / 2 - panelW / 2;
@@ -441,10 +447,10 @@ class HUD {
     textSize(15);
 
     let finalSize = this.player ? this.player.getRadius().toFixed(1) : '--';
-    let finalTime = this.gameManager.getElapsedSeconds();
-    let mins      = Math.floor(finalTime / 60);
-    let secs      = finalTime % 60;
-    let timeStr   = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    let finalTime = this.gameManager.getTimeSurvived();
+    let mins = Math.floor(finalTime / 60);
+    let secs = finalTime % 60;
+    let timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 
     fill(200, 80, 80);
     text('▸ Size reached',  panelX + 24, panelY + 28);
@@ -453,16 +459,18 @@ class HUD {
 
     fill(255, 180, 180);
     textAlign(RIGHT, CENTER);
-    text(finalSize,       panelX + panelW - 24, panelY + 28);
-    text(timeStr,         panelX + panelW - 24, panelY + 60);
+    text(finalSize, panelX + panelW - 24, panelY + 28);
+    text(timeStr, panelX + panelW - 24, panelY + 60);
     let cause = this.gameManager.deathCause === 'starved'
       ? 'Starvation'
-      : this.gameManager.bossActive
-        ? 'Devoured by the shark'
-        : 'Eaten alive';
+      : this.gameManager.deathCause === 'timeout'
+        ? 'Time ran out'
+        : this.gameManager.bossActive
+          ? 'Devoured by the shark'
+          : 'Eaten alive';
     text(cause, panelX + panelW - 24, panelY + 92);
 
-    // ── Try again button ──
+    // Try again button
     let btnY   = height * 0.74;
     let bPulse = sin(frameCount * 0.05) * 0.12 + 0.88;
 
@@ -481,7 +489,7 @@ class HUD {
     pop();
   }
 
-  // ── Rank helper ──────────────────────────────────────────────────
+  // Rank helper────────────────────────────────────────────────
 
   _rank(seconds) {
     if (seconds < 30)  return 'Leviathan';
@@ -490,7 +498,7 @@ class HUD {
     return 'Survivor';
   }
 
-  // ── Main show ────────────────────────────────────────────────────
+  // Main show──────────────────────────────────────────────────
 
   show() {
     if (this.gameManager.isStartScreen()) {
@@ -508,7 +516,7 @@ class HUD {
 
     if (!this.player) return;
 
-    // ── Zone transition ──
+    // Zone transition
     if (this.gameManager.zoneTransitionTimer > 0) {
       push();
       let zoneColor = this._getZoneColor(this.gameManager.zoneTransitionMessage);
@@ -522,16 +530,130 @@ class HUD {
       pop();
     }
 
-    // ── Timer ──
+    // Timer display top-right
     push();
-    fill(180, 220, 255, 200);
+    let secsLeft = this.gameManager.getElapsedSeconds();
+    let mins = Math.floor(secsLeft / 60);
+    let secs = secsLeft % 60;
+    let timeStr = `${mins}:${secs.toString().padStart(2, '0')}`;
+
     textAlign(RIGHT, TOP);
     textFont('Courier New, monospace');
-    textSize(15);
-    text(`${this.gameManager.getElapsedSeconds()}s`, width - 14, 12);
+    textSize(18);
+
+    if (secsLeft <= 30) {
+      // Urgent — red pulsing
+      let pulse = map(sin(frameCount * 0.2), -1, 1, 150, 255);
+      fill(255, 60, 60, pulse);
+      textSize(22);
+    } else if (secsLeft <= 60) {
+      // Warning — amber
+      fill(255, 180, 40, 220);
+    } else {
+      // Normal — white
+      fill(180, 220, 255, 200);
+    }
+    text(timeStr, width - 14, 12);
     pop();
 
-    // ── Dash indicator ──
+    // Boss arrival cinematic
+    if (this.gameManager.bossMessageTimer > 0) {
+      push();
+      let t     = this.gameManager.bossMessageTimer;
+      let total = 300;
+
+      // Full screen dark overlay — fades in then out
+      let overlayAlpha;
+      if (t > 250)      
+        overlayAlpha = map(t, 300, 250, 0, 160);
+      else if (t > 80)  
+        overlayAlpha = 160;
+      else   
+        overlayAlpha = map(t, 80, 0, 160, 0);
+
+      fill(0, 0, 0, overlayAlpha);
+      noStroke();
+      rect(0, 0, width, height);
+
+      // Red horizontal lines — cinematic bars
+      let barH = height * 0.15;
+      fill(8, 2, 2, overlayAlpha);
+      rect(0, 0, width, barH);
+      rect(0, height - barH, width, barH);
+
+      // Main title: "A PREDATOR AWAKENS"
+      let titleAlpha;
+      if (t > 240)      
+        titleAlpha = map(t, 280, 240, 0, 255);
+      else if (t > 100) 
+        titleAlpha = 255;
+      else              
+        titleAlpha = map(t, 100, 60, 255, 0);
+
+      // Glow layers
+      textAlign(CENTER, CENTER);
+      textFont('Georgia, serif');
+      for (let g = 4; g >= 0; g--) {
+        fill(200, 20, 20, map(g, 0, 4, titleAlpha * 0.6, 0));
+        textSize(58 + g * 4);
+        text('A PREDATOR AWAKENS', width / 2, height / 2 - 40);
+      }
+      fill(255, 80, 80, titleAlpha);
+      textSize(58);
+      text('A PREDATOR AWAKENS', width / 2, height / 2 - 40);
+
+      // Subtitle — appears later
+      let subAlpha;
+      if (t > 200)      
+        subAlpha = 0;
+      else if (t > 160) 
+        subAlpha = map(t, 200, 160, 0, 220);
+      else if (t > 80)  
+        subAlpha = 220;
+      else              
+        subAlpha = map(t, 80, 40, 220, 0);
+
+      fill(200, 150, 150, subAlpha);
+      textFont('Courier New, monospace');
+      textSize(16);
+      text('Grow to size 80 to survive', width / 2, height / 2 + 30);
+
+      // Bottom hint
+      if (t < 120) {
+        let hintAlpha = map(t, 120, 80, 0, 180);
+        fill(140, 100, 100, hintAlpha);
+        textSize(13);
+        text('DASH near the shark to push it back', width / 2, height / 2 + 65);
+      }
+
+      // Animated red scan line
+      if (t > 80 && t < 260) {
+        let scanY = map(t, 260, 80, height * 0.15, height * 0.85);
+        stroke(255, 40, 40, 60);
+        strokeWeight(1);
+        line(0, scanY, width, scanY);
+      }
+
+      pop();
+    }
+
+
+    // Red edge vignette when under 30 seconds
+    if (this.gameManager.getElapsedSeconds() <= 30 &&
+        this.gameManager.gameState === 'playing') {
+      push();
+      let urgency = map(this.gameManager.getElapsedSeconds(), 0, 30, 1.0, 0.0);
+      let vAlpha  = urgency * 60 * map(sin(frameCount * 0.15), -1, 1, 0.6, 1.0);
+      noFill();
+      for (let i = 0; i < 5; i++) {
+        stroke(200, 30, 30, vAlpha * (1 - i * 0.15));
+        strokeWeight(i * 8 + 4);
+        rect(0, 0, width, height);
+      }
+      pop();
+    }
+
+    // Dash indicator
     push();
     let cooldown    = this.player.dashCooldown;
     let maxCooldown = 180;
@@ -557,7 +679,7 @@ class HUD {
     text('F  leader group', width - 14, 64);
     pop();
 
-    // ── Stats top-left ──
+    // Stats top-left
     push();
     fill(160, 210, 240, 200);
     textAlign(LEFT, TOP);
@@ -571,48 +693,23 @@ class HUD {
     text(`ZONE   ${zone}`,            14, 48);
     pop();
 
-    // ── Progress bar ──
+    // Hunger bar
     push();
-    let barW  = 280;
-    let barH  = 6;
-    let barX  = width / 2 - barW / 2;
-    let barY  = height - 28;
-    let prog  = constrain(size / this.gameManager.winSize, 0, 1);
-
-    fill(20, 40, 70);
-    noStroke();
-    rect(barX, barY, barW, barH, 3);
-
-    fill(0, 180, 255);
-    rect(barX, barY, barW * prog, barH, 3);
-
-    stroke(0, 160, 220, 120);
-    strokeWeight(1);
-    noFill();
-    rect(barX, barY, barW, barH, 3);
-
-    noStroke();
-    fill(100, 180, 220, 160);
-    textFont('Courier New, monospace');
-    textAlign(CENTER, BOTTOM);
-    textSize(12);
-    text(`${size.toFixed(1)} / ${this.gameManager.winSize}`, width / 2, barY - 4);
-    pop();
-
-    // ── Hunger bar ──
-    push();
-    let hunger    = this.player.hunger;
+    let hunger = this.player.hunger;
     let maxHunger = this.player.maxHunger;
-    let hBarW     = 160;
-    let hBarH     = 6;
-    let hBarX     = 14;
-    let hBarY     = height - 28;
+    let hBarW = 160;
+    let hBarH = 6;
+    let hBarX = 14;
+    let hBarY = height - 20;
 
     // Color shifts red as hunger drops
     let hCol;
-    if (hunger > 60)      hCol = color(80,  220, 120); // green
-    else if (hunger > 30) hCol = color(240, 180, 40);  // amber
-    else                  hCol = color(220, 60,  60);  // red
+    if (hunger > 60)  
+          hCol = color(80,  220, 120); // green
+    else if (hunger > 30) 
+      hCol = color(240, 180, 40);  // amber
+    else                 
+       hCol = color(220, 60,  60);  // red
 
     // Background
     fill(20, 30, 40);
@@ -639,7 +736,7 @@ class HUD {
 
     pop();
 
-    // ── Starvation warning ──
+    // Starvation warning
     if (this.player.isStarving) {
       push();
       // Pulsing red warning text

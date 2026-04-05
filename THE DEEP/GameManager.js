@@ -67,7 +67,9 @@ class GameManager {
     this.currentZone = this.zoneManager.getZoneName(this.player.pos.y);
     this.zoneTransitionMessage = '';
     this.zoneTransitionTimer = 0;
-    this.timer = 0;
+    this.timeLimit = 120 * 60; // 2 minutes in frames (120s × 60fps)
+    this.timer = this.timeLimit;
+    this.timerRunning = false;
     this.obstacles = [];
     this.leaderGroup  = null;  // { leader, followers[] }
     this.boss         = null;
@@ -81,6 +83,8 @@ class GameManager {
     this.particles = [];
     this.dyingTimer = 0;
     this.deathCause = '';
+    this.bossMessage = '';
+    this.bossMessageTimer = 0;  
   }
 
   spawnFish() {
@@ -107,17 +111,17 @@ class GameManager {
   }
 
   spawnBoss() {
-    // Spawn boss at a distance from player
     let angle  = random(TWO_PI);
     let spawnX = constrain(this.player.pos.x + cos(angle) * 500, 150, 1850);
     let spawnY = constrain(this.player.pos.y + sin(angle) * 500, 150, 2850);
-    this.boss = new BossShark(spawnX, spawnY);
-    this.bossActive = true;
+    this.boss        = new BossShark(spawnX, spawnY);
+    this.bossActive  = true;
     this.bossSpawned = true;
 
-    // Announce boss
-    this.zoneTransitionMessage = 'A PREDATOR AWAKENS';
-    this.zoneTransitionTimer   = 240;
+    // Boss arrival message
+    this.bossMessage      = 'THE DEEP';
+    this.bossMessageTimer = 300; // 5 seconds
+    this.bossMessagePhase = 0;   // 0=title, 1=subtitle
   }
 
   createFishForDepth(x, y) {
@@ -209,22 +213,40 @@ class GameManager {
   }
 
   update(mouseWorldPos) {
-    this.timer += 1;
+    // Countdown timer
+    if (this.timerRunning && this.gameState === 'playing') {
+      this.timer--;
+      if (this.timer <= 0) {
+        this.timer = 0;
+        this.timerRunning = false;
+        this.gameState   = 'dying';
+        this.player.triggerDeath();
+        this.dyingTimer  = 0;
+        this.deathCause  = 'timeout';
+        triggerShake(18, 45);
+      }
+    }
 
     // Handle dying state — wait for death animation then go to gameover
     if (this.gameState === 'dying') {
+      this.timerRunning = false; // ensure timer stops
       this.dyingTimer++;
       this.player.updateDeathAnimation();
       // Death anim is 7 frames at fps 5 = ~84 game frames, wait 100 to be safe
-      if (this.dyingTimer > 100) {
+      if (this.dyingTimer > 150 || this.player.anims.death?.done) {
         this.gameState = 'gameover';
+        this.timerRunning = false;
       }
       return; // skip all other updates while dying
     }
 
     if (this.gameState !== 'playing') return;
+    // Decrement boss message timer
+    if (this.bossMessageTimer > 0) {
+      this.bossMessageTimer--;
+    }
 
-    // ── Leader group update ──────────────────────────────────────
+    // Leader group update
     if (this.leaderActive && this.leaderGroup) {
       let leader    = this.leaderGroup.leader;
       let followers = this.leaderGroup.followers;
@@ -255,15 +277,20 @@ class GameManager {
         this.leaderActive = false;
       }
     }
+    
+    // Pause countdown during boss arrival cinematic
+    if (this.bossMessageTimer > 0 && this.timerRunning) {
+      this.timer++; // add back the frame that was decremented
+    }
 
-    // ── Boss spawn trigger ───────────────────────────────────────
+    // Boss spawn trigger 
     if (!this.bossSpawned &&
         this.player.getRadius() >= this.bossThreshold) {
       this.spawnBoss();
       triggerShake(12, 60);
     }
 
-    // ── Boss update ───────────────────────────────────────────────
+    // Boss update 
     if (this.bossActive && this.boss) {
       let bossForce = this.boss.computeForce(this.player);
       this.boss.applyForce(bossForce);
@@ -445,6 +472,11 @@ class GameManager {
 
   }
 
+  getTimeSurvived() {
+    let survived = this.timeLimit - this.timer;
+    return Math.floor(survived / 60); // seconds survived
+  }
+
   show() {
     this.decorations.show();
     for (let obs of this.obstacles) {
@@ -527,7 +559,7 @@ class GameManager {
   }
 
   getElapsedSeconds() {
-    return Math.floor(this.timer / 60);
+    return Math.ceil(this.timer / 60);
   }
 
   isGameOver() {
@@ -544,6 +576,7 @@ class GameManager {
 
   startGame() {
     this.gameState = 'playing';
+    this.timerRunning = true;
   }
 
   restart() {
@@ -551,7 +584,10 @@ class GameManager {
     this.aiFish = [];
     this.eatEvents = [];
     this.gameState = 'playing';
-    this.timer = 0;
+    this.timer = this.timeLimit;
+    this.timerRunning = false;
+    // call startGame behavior inline:
+    this.timerRunning = true;
     this.dyingTimer = 0;
     this.deathCause = '';
     this.currentZone = this.zoneManager.getZoneName(this.player.pos.y);
@@ -565,5 +601,7 @@ class GameManager {
     this.boss = null;
     this.bossActive  = false;
     this.bossSpawned = false;
+    this.bossMessageTimer = 0;
+    this.bossMessagePhase = 0;
   }
 }

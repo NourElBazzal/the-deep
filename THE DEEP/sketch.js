@@ -10,6 +10,8 @@ var sounds = {};
 var shakeAmount = 0;
 var shakeDuration = 0;
 var savedConfig = null;
+var bossAudioTriggered = false;
+var isMuted = false;
 
 function preload() {
   algaeImages = [];
@@ -28,6 +30,8 @@ function preload() {
 
   sounds = {};
   sounds.ambient = loadSound('assets/sounds/ambient.mp3');
+  sounds.scaryPopup   = loadSound('assets/sounds/scary_popup.mp3');
+  sounds.scaryAmbient = loadSound('assets/sounds/scary_ambient.mp3');
 }
 
 function setup() {
@@ -61,23 +65,74 @@ function draw() {
   gameManager.update(mouseWorldPos);
   hud.update(gameManager.getPlayer());
 
-  // Adjust ambient volume based on depth and game state
-  if (sounds.ambient) {
-    if (gameManager.isStartScreen()) {
-      sounds.ambient.setVolume(0.3);
-    } else if (gameManager.gameState === 'playing' || 
-              gameManager.gameState === 'dying') {
-      let depth = gameManager.getPlayer().pos.y;
-      // Surface = quieter and brighter, Abyss = louder and deeper
-      let targetVol = map(depth, 0, 3000, 0.2, 0.7);
-      // Smooth volume transition
-      let currentVol = sounds.ambient.getVolume();
-      let newVol = lerp(currentVol, targetVol, 0.02);
-      sounds.ambient.setVolume(newVol);
+  // Sound management
+  if (!isMuted) {
+    let state = gameManager.gameState;
+
+    if (state === 'playing' || state === 'dying') {
+      let depth      = gameManager.getPlayer().pos.y;
+      let bossActive = gameManager.bossActive;
+      let bossTimer  = gameManager.bossMessageTimer;
+
+      if (!bossAudioTriggered && bossActive) {
+        // Boss just spawned — trigger popup sound once
+        bossAudioTriggered = true;
+
+        // Fade out ambient
+        if (sounds.ambient && sounds.ambient.isPlaying()) {
+          sounds.ambient.setVolume(0);
+          sounds.ambient.stop();
+        }
+
+        // Play popup sound once (not looping)
+        if (sounds.scaryPopup && !sounds.scaryPopup.isPlaying()) {
+          sounds.scaryPopup.setLoop(false);
+          sounds.scaryPopup.setVolume(0.8);
+          sounds.scaryPopup.play();
+        }
+
+        // Schedule scary ambient to start after popup (4 seconds = 240 frames)
+        // We use the bossMessageTimer countdown to know when to switch
+      }
+
+      if (bossAudioTriggered && bossActive) {
+        // Boss cinematic is over (timer ran out) — switch to scary ambient
+        if (bossTimer === 0) {
+          if (sounds.scaryPopup && sounds.scaryPopup.isPlaying()) {
+            sounds.scaryPopup.stop();
+          }
+          if (sounds.scaryAmbient && !sounds.scaryAmbient.isPlaying()) {
+            sounds.scaryAmbient.setLoop(true);
+            sounds.scaryAmbient.setVolume(0.5);
+            sounds.scaryAmbient.play();
+          }
+          // Keep scary ambient volume adjusted by depth
+          if (sounds.scaryAmbient && sounds.scaryAmbient.isPlaying()) {
+            let targetVol = map(depth, 0, 3000, 0.4, 0.75);
+            let cur = sounds.scaryAmbient.getVolume();
+            sounds.scaryAmbient.setVolume(lerp(cur, targetVol, 0.02));
+          }
+        }
+      }
+
+      if (!bossAudioTriggered && sounds.ambient) {
+        // Normal ambient — depth-based volume
+        if (!sounds.ambient.isPlaying()) {
+          sounds.ambient.setLoop(true);
+          sounds.ambient.play();
+        }
+        let targetVol = map(depth, 0, 3000, 0.2, 0.7);
+        let cur = sounds.ambient.getVolume();
+        sounds.ambient.setVolume(lerp(cur, targetVol, 0.02));
+      }
+
     } else {
-      // Game over or won — fade out
-      let currentVol = sounds.ambient.getVolume();
-      sounds.ambient.setVolume(lerp(currentVol, 0.05, 0.02));
+      // Game over or won — fade everything out
+      for (let s of [sounds.ambient, sounds.scaryAmbient, sounds.scaryPopup]) {
+        if (s && s.isPlaying()) {
+          s.setVolume(lerp(s.getVolume(), 0, 0.03));
+        }
+      }
     }
   }
 
@@ -161,6 +216,7 @@ function keyPressed() {
   if ((key === 'r' || key === 'R') && (gameManager.isGameOver() || gameManager.isWon())) {
     gameManager.restart();
     camera.pos.set(gameManager.getPlayer().pos.x, gameManager.getPlayer().pos.y);
+    resetAudio();
   }
 
   if (key === 's' || key === 'S') {
@@ -187,6 +243,14 @@ function keyPressed() {
   if (key === 'f' || key === 'F') {
     if (gameManager.gameState === 'playing') {
       gameManager.toggleLeaderGroup();
+    }
+  }
+
+  if (key === 'm' || key === 'M') {
+    isMuted = !isMuted;
+    if (isMuted) {
+      [sounds.ambient, sounds.scaryAmbient, sounds.scaryPopup]
+        .forEach(s => { if (s && s.isPlaying()) s.setVolume(0); });
     }
   }
 
@@ -217,4 +281,15 @@ function windowResized() {
 function triggerShake(amount, duration) {
   shakeAmount = amount;
   shakeDuration = duration;
+}
+
+function resetAudio() {
+  bossAudioTriggered = false;
+  [sounds.scaryAmbient, sounds.scaryPopup]
+    .forEach(s => { if (s && s.isPlaying()) { s.stop(); } });
+  if (sounds.ambient && !sounds.ambient.isPlaying()) {
+    sounds.ambient.setLoop(true);
+    sounds.ambient.setVolume(0.3);
+    sounds.ambient.play();
+  }
 }
