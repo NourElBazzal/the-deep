@@ -156,17 +156,15 @@ sketch.js               ← point d'entrée p5.js uniquement
 
 ## MON EXPÉRIENCE
 
-J'ai choisi de faire un jeu de poissons parce que je voulais explorer les steering behaviors dans un contexte qui ait vraiment du sens — pas juste des triangles qui se suivent sur un canvas blanc. L'idée d'une chaîne alimentaire m'a semblé parfaite : chaque comportement a un rôle écologique naturel. Les proies forment des bancs pour survivre, les prédateurs chassent en anticipant ta trajectoire, et toi tu arrives en douceur plutôt que de téléporter vers la souris.
+J’ai choisi de faire un jeu de poissons parce que je voulais tester les steering behaviors dans un contexte un peu plus concret que juste des triangles qui bougent sur un fond blanc. L’idée d’une chaîne alimentaire m’a paru assez logique : chaque comportement a un rôle "naturel". Les petits poissons restent en groupe, les prédateurs te suivent en anticipant tes mouvements, et le joueur se déplace de manière plus fluide avec arrive au lieu de snap directement sur la souris.
 
-Ce qui m'a le plus surpris c'est de voir comment des règles aussi simples créent des comportements qui semblent vivants. Un banc qui s'éparpille à ton approche, un requin qui orbite autour de toi de façon imprévisible — ça ressemble à quelque chose de naturel, alors que c'est juste quelques vecteurs additionnés.
+Ce qui m'a le plus surpris c'est de voir comment des règles aussi simples créent des comportements qui semblent vivants. Par exemple, voir un banc de poissons se disperser quand tu t’approches, ou un requin tourner autour de toi de façon un peu imprévisible… alors qu’en réalité c’est juste quelques vecteurs combinés.
 
-**La difficulté principale a été le système d'animation par spritesheet.** Les images générées par Gemini avaient des fonds non transparents (noir, gris, ou damier selon le format exporté), ce qui créait un rectangle visible autour du poisson. J'ai dû écrire des scripts Python pour supprimer ces fonds canal par canal — avec des stratégies différentes selon le type de fond. Ensuite l'animation de retournement se déclenchait en permanence à cause du comportement `arrive` qui fait osciller `vel.x` autour de zéro — résolu avec un debounce de 35 frames à vitesse > 1.8 et un cooldown de 60 frames. Enfin le flag `done` des animations en boucle cassait les transitions d'état — résolu en séparant clairement les modes looping et one-shot.
+**La difficulté principale a été le système d'animation par spritesheet.** Les images générées par Gemini avaient des fonds non transparents (noir, gris, ou damier selon le format exporté), ce qui créait un rectangle visible autour du poisson. J'ai dû écrire des scripts Python pour supprimer ces fonds canal par canal — avec des stratégies différentes selon le type de fond. J’ai aussi eu un bug où le poisson changeait de direction en boucle, parce que vel.x oscillait autour de zéro avec arrive: résolu avec un debounce de 35 frames à vitesse > 1.8 et un cooldown de 60 frames. Enfin le flag `done` des animations en boucle cassait les transitions d'état: résolu en séparant clairement les modes looping et one-shot.
 
-**Le BehaviorManager** m'a forcé à vraiment réfléchir à ce que chaque comportement fait et quand il doit dominer les autres. Voir en debug les comportements s'activer et se désactiver en temps réel — `flee` qui prend le dessus sur `wander` quand tu approches une proie — c'est bien plus satisfaisant que de lire du code.
+**Le BehaviorManager** m'a forcé à vraiment réfléchir à ce que chaque comportement fait et quand il doit dominer les autres. Voir en debug les comportements s'activer et se désactiver en temps réel — `flee` qui prend le dessus sur `wander` quand tu approches une proie - c'est bien plus satisfaisant que de lire du code.
 
-**Le boss shark** a été la partie la plus créative. Combiner pursue, wander, flee et circle strafe dans une machine d'état simple donne quelque chose qui semble vraiment vivant et dangereux. Le moment où la cinématique se déclenche et que la musique change est exactement l'effet que je voulais.
-
-Au final ce projet m'a appris autant sur la gestion des assets, le débogage canvas et l'architecture logicielle que sur les steering behaviors eux-mêmes.
+**Le boss shark** était clairement la partie la plus fun à faire. J’ai combiné pursue, wander, flee et un genre de circle strafe avec une machine d'état assez simple. Au final, ça donne un comportement qui paraît assez “vivant”. Le moment où la cinématique se lance avec le changement de musique rend bien comme je voulais.
 
 ---
 
