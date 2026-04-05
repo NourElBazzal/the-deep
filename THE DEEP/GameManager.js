@@ -369,6 +369,27 @@ class GameManager {
     this.player.pos.x = constrain(this.player.pos.x, pm, 2000 - pm);
     this.player.pos.y = constrain(this.player.pos.y, pm, 3000 - pm);
 
+    // Hard obstacle collision — push player out if overlapping
+    for (let obs of this.obstacles) {
+      let d = dist(
+        this.player.pos.x, this.player.pos.y,
+        obs.x, obs.y
+      );
+      let minDist = obs.radius + this.player.getRadius() * 0.8;
+      if (d < minDist && d > 0) {
+        // Push player directly away from obstacle center
+        let pushDir = createVector(
+          this.player.pos.x - obs.x,
+          this.player.pos.y - obs.y
+        );
+        pushDir.normalize();
+        pushDir.mult(minDist - d + 2); // +2px buffer
+        this.player.pos.add(pushDir);
+        // Kill velocity toward obstacle
+        this.player.vel.mult(0.3);
+      }
+    }
+
     // AI fish: apply current + behavior + boundary, then update
     let preyFish = this.aiFish.filter(f => f.type === 'prey');
     for (let fish of this.aiFish) {
@@ -393,6 +414,22 @@ class GameManager {
       let fm = fish.size * 1.5;
       fish.pos.x = constrain(fish.pos.x, fm, 2000 - fm);
       fish.pos.y = constrain(fish.pos.y, fm, 3000 - fm);
+
+      // Hard obstacle collision for AI fish
+      for (let obs of this.obstacles) {
+        let d = dist(fish.pos.x, fish.pos.y, obs.x, obs.y);
+        let minDist = obs.radius + fish.size * 0.8;
+        if (d < minDist && d > 0) {
+          let pushDir = createVector(
+            fish.pos.x - obs.x,
+            fish.pos.y - obs.y
+          );
+          pushDir.normalize();
+          pushDir.mult(minDist - d + 2);
+          fish.pos.add(pushDir);
+          fish.vel.mult(0.3);
+        }
+      }
     }
 
     // Check collisions

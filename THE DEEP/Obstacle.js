@@ -38,11 +38,18 @@ class Obstacle {
 
   computeAvoidanceForce(vehicle) {
     let d = dist(vehicle.pos.x, vehicle.pos.y, this.x, this.y);
-    let avoidRadius = this.radius + vehicle.getRadius() + 40;
+    let avoidRadius = this.radius + vehicle.getRadius() + 60;
+
     if (d < avoidRadius && d > 0) {
-      let force = p5.Vector.sub(vehicle.pos, createVector(this.x, this.y));
+      let force = p5.Vector.sub(
+        vehicle.pos,
+        createVector(this.x, this.y)
+      );
       force.normalize();
-      force.mult(vehicle.maxForce * map(d, 0, avoidRadius, 3.0, 0));
+
+      // Force is exponentially stronger the closer you get
+      let strength = pow(map(d, 0, avoidRadius, 3.0, 0), 2);
+      force.mult(vehicle.maxForce * strength);
       return force;
     }
     return createVector(0, 0);
