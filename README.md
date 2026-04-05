@@ -3,7 +3,7 @@
 Un jeu de survie sous-marine réalisé avec p5.js, basé sur les steering behaviors de Craig Reynolds.
 
 🎮 **[Jouer au jeu](https://NourElBazzal.github.io/the-deep)**
-📺 **[Voir la vidéo de gameplay](VOTRE_LIEN_YOUTUBE)**
+📺 **[Voir la vidéo de gameplay](https://youtu.be/3dIo54MKKew?si=qPUpHb51Zmrk-zUy)**
 
 ---
 
